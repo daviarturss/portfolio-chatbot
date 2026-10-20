@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title> | Portfolio | </title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>body{font-family:'Inter',sans-serif}
+#bg{pointer-events:none}
+section, header, footer, .box{background:rgba(80,80,80,0.65);backdrop-filter:blur(8px);border-radius:1rem;border:1px solid rgba(255,255,255,0.15)}
+section{padding:1.5rem;margin:1rem auto;max-width:1120px}
+header{position:sticky;top:0;z-index:40;padding:1rem;margin:1rem auto}
+@media (min-width:768px){section{padding:2rem;margin:1.5rem auto}}
+</style>
+</head>
+<body class="text-gray-100 bg-black">
+<img id="bg" src="../background.webp" class="fixed inset-0 -z-10 w-full h-full object-cover opacity-80" alt="background"/>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const personalData = {
+  nome: "Davi Artur Silva Sousa",
+  idade: 24,
+  local: "Recife – PE",
+  telefone: "(81) 99219-2077",
+  cargo: "Estudante de Análise e Desenvolvimento de Sistemas",
+  formacao: "Análise e Desenvolvimento de Sistemas — Estácio, 2º período",
+  ensinoMedio: "Ensino Médio Completo — ETE Porto Digital, 2018",
+  experiencia: "Consultor de Vendas – Administrativo, Out 2025 – Mai 2026",
+  areasDeInteresse: ["Desenvolvimento Web", "Suporte TI", "Administração e Processos"],
+  especializacoes: "HTML, CSS, JavaScript, Python, React, Node.js, SQL, Git/GitHub e uso de IA para estudos e automação",
+  bio: "Estudante de Análise e Desenvolvimento de Sistemas na Estácio, 2º período, com formação complementar na ETE Porto Digital. Atuo com HTML, CSS, JavaScript, Python, React, Node.js, SQL e Git/GitHub, e tenho experiência prática em processos administrativos, organização de planilhas e digitalização de documentos. Utilizo inteligência artificial como apoio aos estudos, pesquisa e automação no desenvolvimento de soluções.",
+  sobre: "Sou uma pessoa proativa, organizada e com forte senso de responsabilidade. Valorizo o trabalho em equipe, a comunicação clara e a resolução de problemas com empatia e foco em resultados. Gosto de aprender continuamente, sou adaptável a mudanças e acredito na importância da qualidade, da documentação e das boas práticas. Meu objetivo é agregar valor ao ambiente de trabalho, contribuindo com comprometimento, iniciativa e uma atitude colaborativa.",
+  habilidades: ["HTML","CSS","JavaScript","Python","React","Node.js","SQL","Git","GitHub"],
+  contato: { github: "daviarturss", linkedin: "daviartur", email: "seu@email.com" }
+};
+
+const linkedinImages = [
+  "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800",
+  "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=800",
+  "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800"
+];
+
+function App(){
+  const [repos,setRepos]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [chatOpen,setChatOpen]=useState(false);
+  const [messages,setMessages]=useState([{role:'assistant',text:'Olá! Sou o assistente do Davi. Pergunte sobre formação, experiência ou projetos.'}]);
+  const [input,setInput]=useState('');
+  const chatEndRef=useRef(null);
+  useEffect(()=>{
+    fetch(`https://api.github.com/users/${personalData.contato.github}/repos?per_page=6&sort=updated`)
+      .then(r=>r.json()).then(d=>setRepos(Array.isArray(d)?d:[])).catch(()=>setRepos([])).finally(()=>setLoading(false));
+  },[]);
+  useEffect(()=>{chatEndRef.current?.scrollIntoView({behavior:'smooth'});},[messages]);
+  const handleSend=()=>{
+    if(!input.trim())return;
+    const userMsg={role:'user',text:input};
+    setMessages(m=>[...m,userMsg]); setInput('');
+    setTimeout(()=>{
+      const q=input.toLowerCase();
+      let answer='';
+      if(q.includes('idade')||q.includes('anos')) answer=`Tenho ${personalData.idade} anos.`;
+      else if(q.includes('nome')||q.includes('quem sou')) answer=`Olá! Sou ${personalData.nome}, ${personalData.cargo} de ${personalData.local}. Sou proativo, trabalho bem em equipe e busco aprendizado contínuo.`;
+      else if(q.includes('formação')||q.includes('estudo')||q.includes('faculdade')||q.includes('curso')) answer=`Estou cursando ${personalData.formacao}. ${personalData.ensinoMedio}. Tenho interesse em ${personalData.areasDeInteresse.join(', ')}.`;
+      else if(q.includes('experiência')||q.includes('trabalho')||q.includes('profissional')) answer=`Minha experiência mais recente é ${personalData.experiencia}, com foco em planilhas, digitalização, apoio administrativo e atendimento. Estou aberto a oportunidades em ${personalData.areasDeInteresse.join(', ')} e valorizo ambientes que permitam crescimento.`;
+      else if(q.includes('oportunidade')||q.includes('vaga')||q.includes('carreira')) answer=`Estou aberto a oportunidades nas áreas de ${personalData.areasDeInteresse.join(', ')}. Minhas especializações incluem ${personalData.especializacoes}, e busco aplicar conhecimentos técnicos aliado à organização e resolução de problemas.`;
+      else if(q.includes('habilidade')||q.includes('skill')||q.includes('tecnologia')) answer=`Minhas principais habilidades são ${personalData.habilidades.join(', ')}. ${personalData.sobre} Trabalho com ${personalData.especializacoes}.`;
+      else if(q.includes('local')||q.includes('mora')||q.includes('cidade')) answer=`Moro em ${personalData.local}.`;
+      else if(q.includes('projeto')||q.includes('github')||q.includes('repositório')) answer=`Meus projetos estão em https://github.com/${personalData.contato.github}. Lá você encontra trabalhos com integração de dados e automação com IA.`;
+      else if(q.includes('sobre')||q.includes('bio')) answer=`${personalData.sobre} ${personalData.bio} Estou aberto a desafios em diferentes rotas, não me limito só à programação.`;
+      else answer=`${personalData.bio} Posso falar sobre formação, experiência, habilidades e áreas de interesse. O que você gostaria de saber?`;
+      setMessages(m=>[...m,{role:'assistant',text:answer}]);
+    },400);
+  };
+  const getImg=(r)=>{
+    const lang=(r.language||'').toLowerCase();
+    const isWeb=['javascript','typescript','html','css'].some(k=>lang.includes(k)||r.name.toLowerCase().includes(k));
+    const isPython=lang.includes('python');
+    return isWeb?'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&auto=format':'https://images.unsplash.com/photo-1526379095098-d400fd0bf935?w=800&auto=format';
+  };
+  return (
+    <div className="min-h-screen">
+      <header className="sticky top-0 z-40 backdrop-blur bg-[#0a0a0f]/70 border-b border-white/10">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+          <div className="font-bold text-lg">{personalData.nome}</div>
+          <nav className="hidden md:flex gap-6 text-sm text-gray-300">
+            <a href="#sobre" className="hover:text-white">Sobre</a>
+            <a href="#formacao" className="hover:text-white">Formação</a>
+            <a href="#projetos" className="hover:text-white">Projetos</a>
+            <a href="#linkedin" className="hover:text-white">LinkedIn</a>
+          </nav>
+        </div>
+      </header>
+
+      <section className="max-w-6xl mx-auto px-6 py-20 grid md:grid-cols-2 gap-10 items-center">
+        <div>
+          <h1 className="text-5xl font-bold leading-tight bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">{personalData.nome}</h1>
+          <p className="mt-4 text-xl text-gray-300">{personalData.cargo} • {personalData.local}</p>
+          <p className="mt-4 text-gray-400">{personalData.bio}</p>
+          <div className="mt-6 flex gap-3">
+            <a href={`https://github.com/${personalData.contato.github}`} target="_blank" className="px-4 py-2 bg-white text-black rounded-lg font-medium">GitHub</a>
+            <a href={`https://linkedin.com/in/${personalData.contato.linkedin}`} target="_blank" className="px-4 py-2 border border-white/20 rounded-lg">LinkedIn</a>
+          </div>
+        </div>
+        <div className="rounded-3xl border border-white/10 p-6 bg-gradient-to-br from-white/5 to-transparent">
+          <h3 className="font-semibold mb-3">Habilidades</h3>
+          <div className="flex flex-wrap gap-2">{personalData.habilidades.map(h=> <span key={h} className="px-3 py-1 bg-white/10 rounded-full text-sm">{h}</span>)}</div>
+        </div>
+      </section>
+
+      <section id="sobre" className="max-w-6xl mx-auto px-6 py-16">
+        <h2 className="text-3xl font-bold mb-6">Sobre mim</h2>
+        <p className="text-gray-300 leading-relaxed">{personalData.sobre}</p>
+      </section>
+
+      <section id="formacao" className="max-w-6xl mx-auto px-6 py-16 grid md:grid-cols-2 gap-8">
+        <div className="p-6 rounded-2xl bg-white/5 border border-white/10">
+          <h3 className="font-semibold mb-2">Formação</h3>
+          <p>{personalData.formacao}</p>
+          <p className="text-gray-400 text-sm mt-2">{personalData.ensinoMedio}</p>
+        </div>
+        <div className="p-6 rounded-2xl bg-white/5 border border-white/10">
+          <h3 className="font-semibold mb-2">Experiência</h3>
+          <p>{personalData.experiencia}</p>
+          <p className="text-gray-400 text-sm mt-2">Planilhas, digitalização, apoio administrativo, atendimento e operação de sistema tintométrico.</p>
+        </div>
+      </section>
+
+      <section id="projetos" className="max-w-6xl mx-auto px-6 py-16">
+        <h2 className="text-3xl font-bold mb-6">Projetos GitHub</h2>
+        <div className="grid md:grid-cols-3 gap-6">
+          {loading? <p>Carregando...</p> : repos.map(r=>(
+            <a key={r.id} href={r.html_url} target="_blank" className="rounded-2xl overflow-hidden border border-white/10 bg-white/5 hover:bg-white/10 transition">
+              <img src={getImg(r)} className="w-full h-40 object-cover"/>
+              <div className="p-4">
+                <h4 className="font-semibold">{r.name}</h4>
+                <p className="text-sm text-gray-400 line-clamp-2">{r.description}</p>
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
+
+      <section id="linkedin" className="max-w-6xl mx-auto px-6 py-16">
+        <h2 className="text-3xl font-bold mb-6">Atividades LinkedIn</h2>
+        <p className="text-gray-400 mb-6">Imagens recentes do seu perfil. Para sincronização automática, conecte a API do LinkedIn.</p>
+        <div className="grid md:grid-cols-3 gap-6">
+          {linkedinImages.map((src,i)=>(
+            <div key={i} className="rounded-2xl overflow-hidden border border-white/10">
+              <img src={src} className="w-full h-48 object-cover"/>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <button onClick={()=>setChatOpen(!chatOpen)} className="fixed bottom-6 right-4 z-50 px-4 py-3 rounded-full bg-blue-600 hover:bg-blue-500 shadow-lg font-medium text-sm">💬 Chat</button>
+      {chatOpen && (
+        <div className="fixed bottom-24 right-4 left-4 md:right-6 md:left-auto z-50 w-[90vw] md:w-[340px] h-[70vh] max-h-[460px] bg-[#111] border border-white/10 rounded-2xl shadow-2xl flex flex-col">
+          <div className="p-4 border-b border-white/10 font-semibold">Chat sobre mim</div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {messages.map((m,i)=>(
+              <div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-start'}`}>
+                <div className={`max-w-[80%] px-3 py-2 rounded-lg text-sm ${m.role==='user'?'bg-blue-600':'bg-white/10'}`}>{m.text}</div>
+              </div>
+            ))}
+            <div ref={chatEndRef}/>
+          </div>
+          <div className="p-3 border-t border-white/10 flex gap-2">
+            <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleSend()} placeholder="Pergunte..." className="flex-1 bg-white/5 rounded-lg px-3 py-2 text-sm outline-none"/>
+            <button onClick={handleSend} className="px-3 py-2 bg-blue-600 rounded-lg text-sm">Enviar</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

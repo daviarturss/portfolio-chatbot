@@ -10,11 +10,14 @@
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <style>body{font-family:'Inter',sans-serif}
-#bg{pointer-events:none}
+#bg{pointer-events:none;transition:transform 0.2s ease-out}
 section, header, footer, .box{background:rgba(80,80,80,0.65);backdrop-filter:blur(8px);border-radius:1rem;border:1px solid rgba(255,255,255,0.15)}
 section{padding:1.5rem;margin:1rem auto;max-width:1120px}
 header{position:sticky;top:0;z-index:40;padding:1rem;margin:1rem auto}
 @media (min-width:768px){section{padding:2rem;margin:1.5rem auto}}
+html.light body{background:#f5f5f7;color:#111}
+html.light section, html.light header{background:rgba(255,255,255,0.7);border-color:rgba(0,0,0,0.1)}
+html.light .text-gray-100{color:#111}
 </style>
 </head>
 <body class="text-gray-100 bg-black">
@@ -52,31 +55,108 @@ function App(){
   const [chatOpen,setChatOpen]=useState(false);
   const [messages,setMessages]=useState([{role:'assistant',text:'Olá! Sou o assistente do Davi. Pergunte sobre formação, experiência ou projetos.'}]);
   const [input,setInput]=useState('');
+  const [theme,setTheme]=useState(()=>{
+    try{return localStorage.getItem('theme')||'dark'}catch{return 'dark'}
+  });
+  const [filterTech,setFilterTech]=useState('Todos');
+  const [selectedRepo,setSelectedRepo]=useState(null);
+  const [scrollProgress,setScrollProgress]=useState(0);
+  const [jobDesc,setJobDesc]=useState('');
+  const [jobPitch,setJobPitch]=useState('');
   const chatEndRef=useRef(null);
+  const bgRef=useRef(null);
   useEffect(()=>{
     fetch(`https://api.github.com/users/${personalData.contato.github}/repos?per_page=6&sort=updated`)
       .then(r=>r.json()).then(d=>setRepos(Array.isArray(d)?d:[])).catch(()=>setRepos([])).finally(()=>setLoading(false));
   },[]);
+  useEffect(()=>{
+    try{localStorage.setItem('theme',theme)}catch{}
+    document.documentElement.classList.toggle('light',theme==='light');
+  },[theme]);
+  useEffect(()=>{
+    const onScroll=()=>{
+      const h=document.documentElement.scrollHeight-window.innerHeight;
+      const p = Math.min(100,Math.max(0,(window.scrollY/h)*100));
+      setScrollProgress(p);
+      const bg=document.getElementById('bg');
+      if(bg){ bg.style.transform=`translateY(${window.scrollY*0.2}px)` }
+    };
+    window.addEventListener('scroll',onScroll);
+    return ()=>window.removeEventListener('scroll',onScroll);
+  },[]);
   useEffect(()=>{chatEndRef.current?.scrollIntoView({behavior:'smooth'});},[messages]);
-  const handleSend=()=>{
-    if(!input.trim())return;
-    const userMsg={role:'user',text:input};
-    setMessages(m=>[...m,userMsg]); setInput('');
+  useEffect(()=>{
+    const canvas=document.getElementById('radarChart');
+    if(!canvas) return;
+    const ctx=canvas.getContext('2d');
+    const labels=['Front-end','Back-end','DB','Infra','IA'];
+    const values=[85,70,65,75,60];
+    const size=300, center=size/2, radius=120;
+    ctx.clearRect(0,0,size,size);
+    ctx.strokeStyle='rgba(255,255,255,0.2)';
+    ctx.lineWidth=1;
+    for(let i=1;i<=5;i++){
+      ctx.beginPath();
+      for(let j=0;j<labels.length;j++){
+        const angle=Math.PI*2*j/labels.length - Math.PI/2;
+        const r=radius*i/5;
+        const x=center+Math.cos(angle)*r;
+        const y=center+Math.sin(angle)*r;
+        if(j===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.closePath(); ctx.stroke();
+    }
+    ctx.beginPath();
+    labels.forEach((l,i)=>{
+      const angle=Math.PI*2*i/labels.length - Math.PI/2;
+      const r=radius*values[i]/100;
+      const x=center+Math.cos(angle)*r;
+      const y=center+Math.sin(angle)*r;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.closePath();
+    ctx.fillStyle='rgba(59,130,246,0.3)';
+    ctx.fill();
+    ctx.strokeStyle='#3b82f6';
+    ctx.lineWidth=2;
+    ctx.stroke();
+  },[]);
+  const intents = [
+    { patterns: [/idade|quantos anos|tem \d+ anos/], reply: () => `Tenho ${personalData.idade} anos.` },
+    { patterns: [/quem (é|você|sou)|nome|apresent[ae]/], reply: () => `Olá! Sou ${personalData.nome}, ${personalData.cargo} de ${personalData.local}. Sou proativo, trabalho bem em equipe e busco aprendizado contínuo.` },
+    { patterns: [/formação|estudo|faculdade|curso|universidade/], reply: () => `Estou cursando ${personalData.formacao}. ${personalData.ensinoMedio}. Tenho interesse em ${personalData.areasDeInteresse.join(', ')}.` },
+    { patterns: [/experiência|trabalho|emprego|profissional|currículo/], reply: () => `Minha experiência mais recente é ${personalData.experiencia}, com foco em planilhas, digitalização, apoio administrativo e atendimento. Valorizo ambientes que permitam crescimento.` },
+    { patterns: [/oportunidade|vaga|emprego|carreira|contratar|posso te contratar/], reply: () => `Estou aberto a oportunidades em ${personalData.areasDeInteresse.join(', ')}. Minhas especializações incluem ${personalData.especializacoes}, e busco aplicar conhecimentos técnicos aliado à organização e resolução de problemas.` },
+    { patterns: [/habilidade|skill|tecnologia|sei|programo|linguagem/], reply: () => `Minhas principais habilidades:\n• ${personalData.habilidades.join('\n• ')} \n\nEspecializações: ${personalData.especializacoes}` },
+    { patterns: [/local|mora|cidade|onde fica|recife/], reply: () => `Moro em ${personalData.local}.` },
+    { patterns: [/projeto|github|repositório|repositorio|código/], reply: () => `Meus projetos estão em https://github.com/${personalData.contato.github}. Lá você encontra trabalhos com integração de dados e automação com IA.` },
+    { patterns: [/sobre você|quem é você como pessoa|personalidade|qualidades/], reply: () => personalData.sobre },
+    { patterns: [/contato|email|telefone|linkedin|instagram/], reply: () => `GitHub: https://github.com/${personalData.contato.github} | LinkedIn: https://linkedin.com/in/${personalData.contato.linkedin} | Tel: ${personalData.telefone}` },
+    { patterns: [/obrigad|valeu|obrigado/], reply: () => ['De nada! 😊', 'Por nada!', 'Feliz em ajudar!'][Math.floor(Math.random()*3)] },
+  ];
+  const getAnswer = (q) => {
+    const lower = q.toLowerCase();
+    for (const i of intents) {
+      if (i.patterns.some(p => p.test(lower))) return i.reply();
+    }
+    const fallbacks = [
+      `${personalData.bio} Posso falar sobre formação, experiência, habilidades e áreas de interesse. O que você gostaria de saber?`,
+      `Entendi. Quer saber sobre minha formação, experiência ou projetos no GitHub?`,
+      `Não tenho certeza, mas posso te contar sobre ${personalData.areasDeInteresse[0]} ou minhas habilidades.`
+    ];
+    return fallbacks[Math.floor(Math.random()*fallbacks.length)];
+  };
+  const handleSend=(override)=>{
+    const text = (override ?? input).trim();
+    if(!text)return;
+    const userMsg={role:'user',text};
+    setMessages(m=>[...m,userMsg]);
+    if(!override) setInput('');
+    setMessages(m=>[...m,{role:'assistant',text:'Digitando...',typing:true}]);
     setTimeout(()=>{
-      const q=input.toLowerCase();
-      let answer='';
-      if(q.includes('idade')||q.includes('anos')) answer=`Tenho ${personalData.idade} anos.`;
-      else if(q.includes('nome')||q.includes('quem sou')) answer=`Olá! Sou ${personalData.nome}, ${personalData.cargo} de ${personalData.local}. Sou proativo, trabalho bem em equipe e busco aprendizado contínuo.`;
-      else if(q.includes('formação')||q.includes('estudo')||q.includes('faculdade')||q.includes('curso')) answer=`Estou cursando ${personalData.formacao}. ${personalData.ensinoMedio}. Tenho interesse em ${personalData.areasDeInteresse.join(', ')}.`;
-      else if(q.includes('experiência')||q.includes('trabalho')||q.includes('profissional')) answer=`Minha experiência mais recente é ${personalData.experiencia}, com foco em planilhas, digitalização, apoio administrativo e atendimento. Estou aberto a oportunidades em ${personalData.areasDeInteresse.join(', ')} e valorizo ambientes que permitam crescimento.`;
-      else if(q.includes('oportunidade')||q.includes('vaga')||q.includes('carreira')) answer=`Estou aberto a oportunidades nas áreas de ${personalData.areasDeInteresse.join(', ')}. Minhas especializações incluem ${personalData.especializacoes}, e busco aplicar conhecimentos técnicos aliado à organização e resolução de problemas.`;
-      else if(q.includes('habilidade')||q.includes('skill')||q.includes('tecnologia')) answer=`Minhas principais habilidades são ${personalData.habilidades.join(', ')}. ${personalData.sobre} Trabalho com ${personalData.especializacoes}.`;
-      else if(q.includes('local')||q.includes('mora')||q.includes('cidade')) answer=`Moro em ${personalData.local}.`;
-      else if(q.includes('projeto')||q.includes('github')||q.includes('repositório')) answer=`Meus projetos estão em https://github.com/${personalData.contato.github}. Lá você encontra trabalhos com integração de dados e automação com IA.`;
-      else if(q.includes('sobre')||q.includes('bio')) answer=`${personalData.sobre} ${personalData.bio} Estou aberto a desafios em diferentes rotas, não me limito só à programação.`;
-      else answer=`${personalData.bio} Posso falar sobre formação, experiência, habilidades e áreas de interesse. O que você gostaria de saber?`;
-      setMessages(m=>[...m,{role:'assistant',text:answer}]);
-    },400);
+      const answer = getAnswer(text);
+      setMessages(m=>m.filter(msg=>!msg.typing).concat({role:'assistant',text:answer}));
+    },600);
   };
   const getImg=(r)=>{
     const lang=(r.language||'').toLowerCase();
@@ -86,14 +166,21 @@ function App(){
   };
   return (
     <div className="min-h-screen">
+      <div className="fixed top-0 left-0 h-1 w-full z-[100] bg-transparent">
+        <div className="h-full bg-blue-500 transition-all" style={{width:`${scrollProgress}%`}}/>
+      </div>
       <header className="sticky top-0 z-40 backdrop-blur bg-[#0a0a0f]/70 border-b border-white/10">
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="font-bold text-lg">{personalData.nome}</div>
-          <nav className="hidden md:flex gap-6 text-sm text-gray-300">
+          <nav className="hidden md:flex gap-6 text-sm text-gray-300 items-center">
             <a href="#sobre" className="hover:text-white">Sobre</a>
             <a href="#formacao" className="hover:text-white">Formação</a>
             <a href="#projetos" className="hover:text-white">Projetos</a>
-            <a href="#linkedin" className="hover:text-white">LinkedIn</a>
+            <a href="#radar" className="hover:text-white">Habilidades</a>
+            <a href="#pitch" className="hover:text-white">Pitch</a>
+            <button onClick={()=>setTheme(t=>t==='dark'?'light':'dark')} className="ml-4 px-3 py-1 rounded-full bg-white/10 text-sm">🌓</button>
+            <a href="CurriculoDaviAdm2026.pdf" download className="ml-2 px-3 py-1 rounded-lg bg-white text-black text-xs font-medium">CV Adm</a>
+            <a href="Curriculo_SuporteT.I.pdf" download className="ml-1 px-3 py-1 rounded-lg border border-white/20 text-xs">CV TI</a>
           </nav>
         </div>
       </header>
@@ -132,17 +219,54 @@ function App(){
         </div>
       </section>
 
+      <section id="radar" className="max-w-6xl mx-auto px-6 py-16">
+        <h2 className="text-3xl font-bold mb-6">Radar de Habilidades</h2>
+        <div className="grid md:grid-cols-2 gap-8 items-center">
+          <div className="p-6 rounded-2xl bg-white/5 border border-white/10">
+            <canvas id="radarChart" width="300" height="300"></canvas>
+          </div>
+          <div className="text-gray-300 space-y-2">
+            <p>Front-end: 85</p>
+            <p>Back-end: 70</p>
+            <p>Banco de Dados: 65</p>
+            <p>Infra/Suporte: 75</p>
+            <p>IA/Automação: 60</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="pitch" className="max-w-6xl mx-auto px-6 py-16">
+        <h2 className="text-3xl font-bold mb-6">Gerar pitch para vaga</h2>
+        <div className="p-6 rounded-2xl bg-white/5 border border-white/10">
+          <textarea value={jobDesc} onChange={e=>setJobDesc(e.target.value)} placeholder="Cole a descrição da vaga aqui..." className="w-full h-32 bg-black/30 rounded-lg p-3 text-sm outline-none"/>
+          <button onClick={()=>{
+            const pitch = `Olá! Sou ${personalData.nome}, ${personalData.cargo} de ${personalData.local}. ${personalData.bio} Tenho experiência em ${personalData.especializacoes}. A vaga "${jobDesc.slice(0,80)}..." combina com meu interesse em ${personalData.areasDeInteresse.join(', ')} e posso agregar com proatividade, organização e uso de IA para automação.`;
+            setJobPitch(pitch);
+          }} className="mt-4 px-4 py-2 bg-blue-600 rounded-lg text-sm">Gerar pitch</button>
+          {jobPitch && <div className="mt-4 p-4 bg-white/5 rounded-lg text-sm whitespace-pre-wrap">{jobPitch}</div>}
+        </div>
+      </section>
+
       <section id="projetos" className="max-w-6xl mx-auto px-6 py-16">
         <h2 className="text-3xl font-bold mb-6">Projetos GitHub</h2>
+        <div className="flex flex-wrap gap-2 mb-6">
+          {['Todos','JavaScript','Python','HTML','CSS','React','Node'].map(t=>(
+            <button key={t} onClick={()=>setFilterTech(t)} className={`px-3 py-1 rounded-full text-xs border ${filterTech===t?'bg-blue-600 border-blue-600':'bg-white/10 border-white/20'}`}>{t}</button>
+          ))}
+        </div>
         <div className="grid md:grid-cols-3 gap-6">
-          {loading? <p>Carregando...</p> : repos.map(r=>(
-            <a key={r.id} href={r.html_url} target="_blank" className="rounded-2xl overflow-hidden border border-white/10 bg-white/5 hover:bg-white/10 transition">
+          {loading? <p>Carregando...</p> : repos.filter(r=>{
+            if(filterTech==='Todos') return true;
+            const lang=(r.language||'').toLowerCase();
+            return lang.includes(filterTech.toLowerCase())||r.name.toLowerCase().includes(filterTech.toLowerCase());
+          }).map(r=>(
+            <div key={r.id} onClick={()=>setSelectedRepo(r)} className="cursor-pointer rounded-2xl overflow-hidden border border-white/10 bg-white/5 hover:bg-white/10 transition">
               <img src={getImg(r)} className="w-full h-40 object-cover"/>
               <div className="p-4">
                 <h4 className="font-semibold">{r.name}</h4>
                 <p className="text-sm text-gray-400 line-clamp-2">{r.description}</p>
               </div>
-            </a>
+            </div>
           ))}
         </div>
       </section>
@@ -159,6 +283,25 @@ function App(){
         </div>
       </section>
 
+      {selectedRepo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={()=>setSelectedRepo(null)}>
+          <div className="bg-[#111] border border-white/10 rounded-2xl max-w-2xl w-full p-6" onClick={e=>e.stopPropagation()}>
+            <div className="flex justify-between items-start">
+              <h3 className="text-2xl font-bold">{selectedRepo.name}</h3>
+              <button onClick={()=>setSelectedRepo(null)} className="text-gray-400 hover:text-white">✕</button>
+            </div>
+            <p className="text-gray-400 mt-2">{selectedRepo.description || 'Sem descrição.'}</p>
+            <div className="mt-4 grid md:grid-cols-2 gap-4 text-sm">
+              <div><strong>Problema:</strong> Demonstrar habilidades com {selectedRepo.language||'tecnologias'} e integração de dados.</div>
+              <div><strong>Solução:</strong> Desenvolvimento com boas práticas, testes e documentação.</div>
+              <div><strong>Tecnologias:</strong> {selectedRepo.language||'Variadas'}, Git, GitHub</div>
+              <div><strong>Resultado:</strong> Repositório público, código reutilizável e aprendizado contínuo.</div>
+            </div>
+            <a href={selectedRepo.html_url} target="_blank" className="inline-block mt-6 px-4 py-2 bg-blue-600 rounded-lg">Abrir no GitHub</a>
+          </div>
+        </div>
+      )}
+
       <button onClick={()=>setChatOpen(!chatOpen)} className="fixed bottom-6 right-4 z-50 px-4 py-3 rounded-full bg-blue-600 hover:bg-blue-500 shadow-lg font-medium text-sm">💬 Chat</button>
       {chatOpen && (
         <div className="fixed bottom-24 right-4 left-4 md:right-6 md:left-auto z-50 w-[90vw] md:w-[340px] h-[70vh] max-h-[460px] bg-[#111] border border-white/10 rounded-2xl shadow-2xl flex flex-col">
@@ -166,10 +309,15 @@ function App(){
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {messages.map((m,i)=>(
               <div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-start'}`}>
-                <div className={`max-w-[80%] px-3 py-2 rounded-lg text-sm ${m.role==='user'?'bg-blue-600':'bg-white/10'}`}>{m.text}</div>
+                <div className={`max-w-[80%] px-3 py-2 rounded-lg text-sm ${m.role==='user'?'bg-blue-600':'bg-white/10'} ${m.typing?'italic opacity-70':''}`}>{m.text}{m.typing && '...'}</div>
               </div>
             ))}
             <div ref={chatEndRef}/>
+          </div>
+          <div className="px-3 pt-2 flex flex-wrap gap-2">
+            {['Formação','Experiência','Projetos','Contato'].map(s=>(
+              <button key={s} onClick={()=>handleSend(s)} className="text-xs px-2 py-1 rounded-full bg-white/10 hover:bg-white/20">{s}</button>
+            ))}
           </div>
           <div className="p-3 border-t border-white/10 flex gap-2">
             <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleSend()} placeholder="Pergunte..." className="flex-1 bg-white/5 rounded-lg px-3 py-2 text-sm outline-none"/>

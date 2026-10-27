@@ -64,6 +64,8 @@ function App(){
   });
   const [filterTech,setFilterTech]=useState('Todos');
   const [selectedRepo,setSelectedRepo]=useState(null);
+  const [repoReadme,setRepoReadme]=useState('');
+  const [readmeLoading,setReadmeLoading]=useState(false);
   const [scrollProgress,setScrollProgress]=useState(0);
   const [jobDesc,setJobDesc]=useState('');
   const [jobPitch,setJobPitch]=useState('');
@@ -125,6 +127,19 @@ function App(){
     ctx.lineWidth=2;
     ctx.stroke();
   },[]);
+  useEffect(()=>{
+    if(!selectedRepo) { setRepoReadme(''); return; }
+    setReadmeLoading(true);
+    fetch(`https://api.github.com/repos/${personalData.contato.github}/${selectedRepo.name}/readme`)
+      .then(r=> r.ok ? r.json() : null)
+      .then(data=>{
+        if(!data) { setRepoReadme(''); return; }
+        const content = atob(data.content.replace(/\n/g,''));
+        setRepoReadme(content);
+      })
+      .catch(()=> setRepoReadme(''))
+      .finally(()=> setReadmeLoading(false));
+  },[selectedRepo]);
   const intents = [
     { patterns: [/idade|quantos anos|tem \d+ anos/], reply: () => `Tenho ${personalData.idade} anos.` },
     { patterns: [/quem (é|você|sou)|nome|apresent[ae]/], reply: () => `Olá! Sou ${personalData.nome}, ${personalData.cargo} de ${personalData.local}. Sou proativo, trabalho bem em equipe e busco aprendizado contínuo.` },
@@ -258,30 +273,19 @@ function App(){
             <button key={t} onClick={()=>setFilterTech(t)} className={`px-3 py-1 rounded-full text-xs border ${filterTech===t?'bg-blue-600 border-blue-600':'bg-white/10 border-white/20'}`}>{t}</button>
           ))}
         </div>
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 gap-10">
           {loading? <p>Carregando...</p> : repos.filter(r=>{
             if(filterTech==='Todos') return true;
             const lang=(r.language||'').toLowerCase();
             return lang.includes(filterTech.toLowerCase())||r.name.toLowerCase().includes(filterTech.toLowerCase());
           }).map(r=>(
-            <div key={r.id} onClick={()=>setSelectedRepo(r)} className="cursor-pointer rounded-2xl overflow-hidden border border-white/10 bg-white/5 hover:bg-white/10 transition">
-              <img src={getImg(r)} className="w-full h-40 object-cover"/>
-              <div className="p-4">
-                <h4 className="font-semibold">{r.name}</h4>
-                <p className="text-sm text-gray-400 line-clamp-2">{r.description}</p>
+            <div key={r.id} onClick={()=>setSelectedRepo(r)} className="cursor-pointer rounded-2xl overflow-hidden border border-white/10 bg-white/5 hover:bg-white/10 transition flex flex-col">
+              <img src={getImg(r)} className="w-full h-64 object-cover"/>
+              <div className="p-6 flex-1">
+                <h4 className="font-semibold text-xl mb-2">{r.name}</h4>
+                <p className="text-sm text-gray-300 leading-relaxed">{r.description || 'Sem descrição.'}</p>
+                <p className="text-xs text-gray-500 mt-3">Linguagem: {r.language || '—'} • Atualizado: {new Date(r.updated_at).toLocaleDateString('pt-BR')}</p>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section id="linkedin" className="max-w-6xl mx-auto px-6 py-16">
-        <h2 className="text-3xl font-bold mb-6">Atividades LinkedIn</h2>
-        <p className="text-gray-400 mb-6">Imagens recentes do seu perfil. Para sincronização automática, conecte a API do LinkedIn.</p>
-        <div className="grid md:grid-cols-3 gap-6">
-          {linkedinImages.map((src,i)=>(
-            <div key={i} className="rounded-2xl overflow-hidden border border-white/10">
-              <img src={src} className="w-full h-48 object-cover"/>
             </div>
           ))}
         </div>
@@ -289,19 +293,21 @@ function App(){
 
       {selectedRepo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={()=>setSelectedRepo(null)}>
-          <div className="bg-[#111] border border-white/10 rounded-2xl max-w-2xl w-full p-6" onClick={e=>e.stopPropagation()}>
+          <div className="bg-[#111] border border-white/10 rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto p-6" onClick={e=>e.stopPropagation()}>
             <div className="flex justify-between items-start">
               <h3 className="text-2xl font-bold">{selectedRepo.name}</h3>
               <button onClick={()=>setSelectedRepo(null)} className="text-gray-400 hover:text-white">✕</button>
             </div>
-            <p className="text-gray-400 mt-2">{selectedRepo.description || 'Sem descrição.'}</p>
-            <div className="mt-4 grid md:grid-cols-2 gap-4 text-sm">
-              <div><strong>Problema:</strong> Demonstrar habilidades com {selectedRepo.language||'tecnologias'} e integração de dados.</div>
-              <div><strong>Solução:</strong> Desenvolvimento com boas práticas, testes e documentação.</div>
-              <div><strong>Tecnologias:</strong> {selectedRepo.language||'Variadas'}, Git, GitHub</div>
-              <div><strong>Resultado:</strong> Repositório público, código reutilizável e aprendizado contínuo.</div>
-            </div>
-            <a href={selectedRepo.html_url} target="_blank" className="inline-block mt-6 px-4 py-2 bg-blue-600 rounded-lg">Abrir no GitHub</a>
+            <p className="text-gray-300 mt-2">{selectedRepo.description || 'Sem descrição.'}</p>
+            <div className="mt-4 text-sm text-gray-400">Linguagem: {selectedRepo.language || '—'} • Estrelas: {selectedRepo.stargazers_count} • Atualizado: {new Date(selectedRepo.updated_at).toLocaleDateString('pt-BR')}</div>
+            {readmeLoading && <p className="mt-4 text-sm text-gray-400">Carregando README...</p>}
+            {repoReadme && (
+              <div className="mt-4 prose prose-invert max-w-none text-sm text-gray-200 whitespace-pre-wrap bg-white/5 p-4 rounded-lg border border-white/10">
+                {repoReadme.slice(0,4000)}
+              </div>
+            )}
+            {!repoReadme && !readmeLoading && <p className="mt-4 text-sm text-gray-500">Sem README disponível.</p>}
+            <a href={selectedRepo.html_url} target="_blank" rel="noopener noreferrer" className="inline-block mt-6 px-4 py-2 bg-blue-600 rounded-lg">Abrir no GitHub</a>
           </div>
         </div>
       )}

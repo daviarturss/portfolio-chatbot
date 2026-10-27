@@ -2,6 +2,17 @@
 
 Portfolio moderno, responsivo e interativo desenvolvido para apresentar minha trajetória profissional, projetos e habilidades técnicas, com integração de dados em tempo real e assistente virtual personalizado.
 
+## 📋 Índice
+- [Sobre o Projeto](#-sobre-o-projeto)
+- [Funcionalidades](#-funcionalidades)
+- [Tecnologias Utilizadas](#️-tecnologias-utilizadas)
+- [Estrutura](#-estrutura)
+- [Pré-requisitos](#pré-requisitos)
+- [Instalação](#instalação)
+- [Como Personalizar](#️-como-personalizar)
+- [Deploy](#-deploy)
+- [Contato](#contato)
+
 ## 🚀 Sobre o Projeto
 
 Este repositório demonstra meu conhecimento em desenvolvimento web com foco em integração de dados e automação com Inteligência Artificial. O site funciona como um cartão de visita digital completo, unindo design, interatividade e dados dinâmicos do GitHub.
@@ -42,6 +53,20 @@ portfolio-chatbot/
 └── Curriculo_SuporteT.I.pdf
 ```
 
+## Pré-requisitos
+- Navegador moderno com suporte a ES6 Modules e Canvas
+- Acesso à internet para carregar React, Tailwind CDN e GitHub API
+
+## Instalação
+1. Baixe ou clone a pasta do projeto
+2. Abra `index.html` diretamente no navegador ou sirva via servidor local:
+
+```bash
+# Exemplo com Python
+python -m http.server 8000
+```
+3. Acesse `http://localhost:8000`
+
 ## ⚙️ Como personalizar
 
 1. Abra `index.html` e localize o objeto `personalData`
@@ -64,7 +89,9 @@ O projeto é estático e pode ser publicado em:
 Basta fazer upload do `index.html` e dos PDFs do currículo.
 
 
----
+## Contato
 
 Desenvolvido por **Davi Artur Silva Sousa**  
 Recife - PE | GitHub: daviarturss | LinkedIn: daviartur
+
+---
